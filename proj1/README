@@ -1,0 +1,18 @@
+In this project, the main process is create a socket, send the hello message, if the server
+responsed, check if the data recieved meet the specific form, if yes, generate a solution message
+and send it to the server, then repeate the check-generate solution-send-recive process until
+encountered the BYE message, and then check the new message and output the recieved 
+64-byte-secret-flag.
+
+
+The biggest chanllenge for me in this project is to find the way to connect using ssl, I tried some
+ways specifying the certification files, but none of them works, at last I tried setting
+cert_reqs=ssl.CERT_NONE and it worked.
+
+For mainly functions, I used all the possible commands to test my code:
+-p port -s hostname nuid
+-p port hostname nuid
+-s hostname nuid
+hostname nuid
+
+and also created some cases to check iff the data recieved meet the given form.

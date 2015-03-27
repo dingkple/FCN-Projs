@@ -1,0 +1,22 @@
+HOW TO RUN:
+
+My project is written in python, run webcrawler directly in command line, if there's permission problems, please use
+chmod +x [my-webcralwer-file]
+
+The algorithm for this crawler is simple:
+
+Since it's a multi-thread one, so the class sharingInfo is used for sharing some infomation between threads, like
+the urls visited, the stack of the urls waiting to be visited, also the secret_flags and etc.
+
+The crawler will first try to login, once it gets the required cookies, it then starts all the threads. For each thread, it first get a un-visited url from the sharing stack and then get the page content using socket, when fetehed from the server, parse the page, check its status and do different things according to this status, if it's 200, search if there's a flag in this page, detect new urls then mark them as visited and push to the stack, if it's not 200, handle it. If all the work above is done, apply a lock, update the url_stack and visited_url, pop a new url, release the lock, and then let other threads do the work. 
+
+Once all the 5 flags have all been collected, write the flags in file, and during the time this program is running, every flag
+found is printed when discoveried.
+
+The reason for multithreading is that in my first way of implementing socket.recieve_time_out(), there's a pretty long sleep time in each GET or POST, which wastes lots of time. I've read some source code of other python modules, like Requests, it makes the socket a filestream, when it comes to reading, it first parses the header, figure out the exact amount of data needed to read, then read that amount of data from the socket. Although this method might be more efficient, it's more complex to code. So I decided to changed the timeout read to this, but just use readline() to get all the data.
+
+
+
+
+
+

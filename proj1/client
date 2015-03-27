@@ -1,0 +1,189 @@
+#!/usr/bin/python
+import socket
+import sys
+import ssl
+
+
+TCP_IP = ''
+TCP_PORT = 0
+BUFFER_SIZE = 256
+IS_SSL = False
+NUID = ''
+CONNECTED = False
+HELLO_MESSAGE = 'cs5700spring2015 HELLO '
+
+
+# check if the input is a num and if it's within the given range:
+# 0~1000
+def check_num_match(num):
+	for c in str(num):
+		if c > '9' or c < '0':
+			wrong_flag = 9
+			print num
+			print "wrong_flag 2: " + wrong_flag
+			return False
+	a = int(num)
+	if a < 0 or a > 1000:
+		wrong_flag = 8
+		print num
+		print "wrong_flag 1: " + wrong_flag
+		return False
+	return True
+
+
+# check iff the input data meet the specific form
+def check_status_response(res):
+	wrong_flag = -1
+	if res[len(res)-1:] != '\n':
+		wrong_flag = 10
+		print "wrong_flag" + str(wrong_flag)
+		return False
+	r = res.split()
+	if len(r) != 5:
+		# wrong_flag = 1
+		# print "wrong_flag" + str(wrong_flag)
+		return False
+	elif r[0] != 'cs5700spring2015':
+		wrong_flag = 2
+		print "wrong_flag" + str(wrong_flag)
+		return False
+	elif r[1] != 'STATUS':
+		wrong_flag = 3
+		print "wrong_flag" + str(wrong_flag)
+		return False
+	elif not check_num_match(r[2]):
+		wrong_flag = 4
+		print "wrong_flag" + str(wrong_flag)
+		return False
+	elif r[3] not in ['+', '-', '*', '/']:
+		wrong_flag = 5
+		print "wrong_flag" + str(wrong_flag)
+		return False
+	elif not check_num_match(r[4]):
+		wrong_flag = 6
+		print "wrong_flag" + str(wrong_flag)
+		return False
+	# print 'status check' + " " + str(wrong_flag)
+	return True
+
+# check iff the given type meet the given BYE mesage form
+def check_bye_response(res):
+	r = res.split()
+	if len(r) != 3:
+		return False
+	elif r[0] != 'cs5700spring2015':
+		return False
+	elif r[2] != 'BYE':
+		return False
+	return True
+
+
+# input the status message, and then return the solution message
+# note that this is already the final form
+def get_solution(status):
+	returned = status.split(' ');
+	op1 = int(returned[2])
+	opr = returned[3]
+	op2 = int(returned[4])
+	st = 0
+	if opr == '+':
+		st = op1 + op2
+	elif opr == '-':
+		st = op1 - op2
+	elif opr == '*':
+		st = op1 * op2
+	else:
+		st = op1/op2
+	return 'cs5700spring2015 ' + str(st) + '\n'
+
+# return the hello message for the given nuid
+def get_hello_msg(nuid):
+	return HELLO_MESSAGE + nuid + '\n';
+
+# connect the server using normal socket
+def normal_socket(ip, port, nuid):
+	try:
+		s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		s.connect((ip, port))
+		s.send(get_hello_msg(nuid))
+		data = s.recv(BUFFER_SIZE)
+		while check_status_response(data):
+			s.send(get_solution(data))
+			data = s.recv(BUFFER_SIZE)
+	finally:
+		if data is None or not check_bye_response(data):
+			print 'wrong message'
+			print data
+			exit(1)
+		else:
+			print(data.split()[1])
+		s.close()
+
+# connect the server using ssl
+def ssl_socket(ip, port, nuid):
+	try:
+		s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		my_ssl = ssl.wrap_socket(s, cert_reqs=ssl.CERT_NONE)
+		my_ssl.connect((ip, port))
+		my_ssl.write(get_hello_msg(nuid))
+		data = my_ssl.read()
+		while check_status_response(data):
+			my_ssl.send(get_solution(data))
+			data = my_ssl.read()
+		if 'STATUS' in data:
+			print data
+	finally:
+		if data is None or not check_bye_response(data):
+			print 'wrong message'
+			print data
+			exit(1)
+		else:
+			print data.split()[1]
+		s.close()
+
+
+# mian function
+def main():
+	if len(sys.argv) == 6 and sys.argv[1] == '-p' and sys.argv[3] == '-s':
+		TCP_PORT = int(sys.argv[2])
+		IS_SSL = True
+		TCP_IP = sys.argv[4]
+		NUID = sys.argv[5]
+	elif len(sys.argv) == 5 and sys.argv[1] == '-p':
+		TCP_PORT = int(sys.argv[2])
+		IS_SSL = False
+		TCP_IP = sys.argv[3]
+		NUID = sys.argv[4]
+	elif len(sys.argv) == 4 and sys.argv[1] == '-s':
+		TCP_PORT = 27994
+		IS_SSL = True
+		TCP_IP = sys.argv[2]
+		NUID = sys.argv[3]
+	elif len(sys.argv) == 3:
+		TCP_IP = sys.argv[1]
+		TCP_PORT = 27993
+		IS_SSL = False
+		NUID = sys.argv[2]
+	else:
+		print("command error")
+		exit(1)
+
+	if IS_SSL:
+		ssl_socket(TCP_IP, TCP_PORT, NUID)
+	else:
+		normal_socket(TCP_IP, TCP_PORT, NUID)
+
+
+if __name__ == '__main__':
+	main()
+
+
+
+
+
+
+
+
+
+
+

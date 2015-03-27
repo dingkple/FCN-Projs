@@ -1,0 +1,24 @@
+METHOLOGIES:
+
+1. For experiment 1
+
+Since our goal is the functions: throughout(flow), packetDropRate(flow), letency(flow), where flow is the CBR flow. since there should only be one parameter, so every other condition should be the same. In this case, for every tcp variant, I will mesure the the properties(throughout, droprate, latency) for each value of flow 10 times and get the average value. And every time, add the flow by 0.5Mb. 
+
+
+2. For experiment 2:
+
+For fairness between TCP variants, since there would be two TCP variants in one experiment, so for every experiment, I will consider the situation: pair A starts [-10, -5, -3, -1, 0, 1, 3, 5, 10] seconds earlier than pair B. And for every circumstance, I will analyze the result to see if it's fair.
+
+3 For experiment 3:
+
+For every queue algorithm, I will start the CBR after the TCP is steady and mesure the performance of both two TCP variants over time. 
+
+About calculating throughput, latency, packet loss ratio:
+
+Throughput: since TCP is a duplex byte-stream, so total throughput is:
+packetsize * packet-num-sent-from-source + acksize * packet-num-sent-from-destination
+
+Latency: The average time needed for the packet sent from the source and back from destination.
+
+Packet loss ratios: The number of packet lost / the number of packet send from source.
+
