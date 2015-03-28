@@ -15,6 +15,7 @@ import socket
 import time
 
 DEBUG = False
+# DEBUG = True
 
 
 class raw_ip:

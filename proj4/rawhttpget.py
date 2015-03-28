@@ -65,6 +65,7 @@ class raw_http:
 
     # write the data to file
     def write_file(self):
+        print self.result
         if '.' in self.filename and self.filename.split('.')[1] in ['html', 'htm']:
             if self.result.endswith('0\r\n\r\n'):
                 print 'chunked'

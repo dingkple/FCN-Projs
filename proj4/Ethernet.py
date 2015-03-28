@@ -13,7 +13,7 @@ DEBUG = False
 
 class ethernet:
     """Get the local macaddr and dst addr"""
-    def __init__(self):  
+    def __init__(self):
         self.src_ip_addr = self.get_local_ip_addr()
         self.src_mac_addr = self.get_local_mac_addr()
         self.interface = self.get_interface()
@@ -24,6 +24,7 @@ class ethernet:
         self.recv_sock = None
         self.create_send_sock()
         self.create_recv_sock()
+
 
     # get local MAC address
     def get_local_mac_addr(self):
@@ -67,7 +68,10 @@ class ethernet:
     def construct_frame_header(self):
         if DEBUG: 
             print 'coconstruct_frame_headerns: '
-        frame_packet = pack("!6s6s2s", self.gateway_mac_addr.replace(':', '').decode('hex'), self.src_mac_addr.replace(':','').decode('hex'), '\x08\x00') 
+        frame_packet = pack("!6s6s2s", 
+            self.gateway_mac_addr.replace(':', '').decode('hex'), 
+            self.src_mac_addr.replace(':','').decode('hex'), 
+            '\x08\x00') 
         return frame_packet
 
     # create SEND socket for AF_PACKET
@@ -98,30 +102,37 @@ class ethernet:
         flag = False
         while not flag:
             #constructing ARP packet
-            eth_hdr = pack("!6s6s2s", '\xff\xff\xff\xff\xff\xff', self.src_mac_addr.replace(':','').decode('hex'), '\x08\x06')
-            arp_hdr = pack("!2s2s1s1s2s", '\x00\x01', '\x08\x00', '\x06', '\x04', '\x00\x01')          
-            arp_sender = pack("!6s4s", self.src_mac_addr.replace(':','').decode('hex'), socket.inet_aton(self.src_ip_addr))
+            eth_hdr = pack("!6s6s2s", 
+                '\xff\xff\xff\xff\xff\xff', 
+                self.src_mac_addr.replace(':','').decode('hex'), 
+                '\x08\x06')
+            arp_hdr = pack("!2s2s1s1s2s", '\x00\x01', '\x08\x00', '\x06', '\x04', '\x00\x01')
+
+            arp_sender = pack("!6s4s", 
+                self.src_mac_addr.replace(':','').decode('hex'), 
+                socket.inet_aton(self.src_ip_addr))
+
             arp_target = pack("!6s4s", '\x00\x00\x00\x00\x00\x00', socket.inet_aton(target))
             try:
-                # send arp packet
-                s = socket.socket(socket.PF_PACKET, socket.SOCK_RAW, socket.htons(0x0806))
+                #send arp packet
+                s = socket.socket(socket.AF_PACKET, socket.SOCK_RAW, socket.htons(0x0806))
                 s.bind((self.interface, socket.htons(0x0806)))
                 s.send(eth_hdr + arp_hdr + arp_sender + arp_target)
                 
-                # wait for gateway's response
-                s = socket.socket(socket.PF_PACKET, socket.SOCK_RAW, socket.htons(0x0806))
+                #wait for gateway's response
+                s = socket.socket(socket.AF_PACKET, socket.SOCK_RAW, socket.htons(0x0806))
                 s.settimeout(0.5)
                 response = s.recvfrom(2048)
-                responseMACraw = binascii.hexlify(response[0][6:12])
-                responseMAC = ":".join(responseMACraw[x:x+2] for x in xrange(0, len(responseMACraw), 2))
-                responseIP = socket.inet_ntoa(response[0][28:32])
-                if target == responseIP and len(responseMAC) > 0:
+                rawMAC = binascii.hexlify(response[0][6:12])
+                dst_MAC = ":".join(rawMAC[x:x+2] for x in xrange(0, len(rawMAC), 2))
+                dstIP = socket.inet_ntoa(response[0][28:32])
+                if target == dstIP and len(dst_MAC) > 0:
                     flag = not flag
                     if DEBUG: 
-                        print responseMAC
+                        print dst_MAC
                     if DEBUG: 
-                        print "Response from the mac %s on IP %s" % (responseMAC, responseIP)
-                    return responseMAC
+                        print "Response from the mac %s on IP %s" % (dst_MAC, dstIP)
+                    return dst_MAC
             except socket.timeout:
                 if DEBUG: 
                     print 'timeout'
@@ -144,10 +155,10 @@ class ethernet:
                 if DEBUG: 
                     print len(packet)
                 fh = packet[:14]
-                dst_mac = self.gateway_mac_addr.replace(':','').decode('hex')
+                dst_MAC = self.gateway_mac_addr.replace(':','').decode('hex')
                 src_mac = self.src_mac_addr.replace(':','').decode('hex')
                 if (fh[:6] == src_mac
-                    and fh[6:12] == dst_mac):
+                    and fh[6:12] == dst_MAC):
                     if DEBUG: 
                         print 'found'
                     return packet[14:]
