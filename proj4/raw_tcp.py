@@ -19,8 +19,8 @@ MSS = 1450
 
 MAX_WIN_SIZE = 30000
 
-DEBUG = True
-# DEBUG = False
+# DEBUG = True
+DEBUG = False
 
 
 
@@ -42,10 +42,13 @@ class raw_TCP:
         self.last_recv_time = 0
         self.data_recved = {}
         self.result = ''
+        self.recv_len = 0
         self.pkt_added = []
         self.chunked = False
         self.content_length = -1
-        self.htmlStared = False
+        self.htmlStarted = False
+
+        self.fileWriter = open('temp.temp', 'w')
 
 
 
@@ -222,10 +225,10 @@ class raw_TCP:
                 if response.get('dst_port') == self.port:
                     if DEBUG:
                         print 'got right port'
-                        self.client_ack = response.get('ack_num')
-                        self.server_seq = response.get('seq_num')
+                    # self.client_ack = resp_packetonse.get('ack_num')
+                    # self.server_seq = response.get('seq_num')
                     return response
-                else:
+                else:   
                     if DEBUG:
                         print 'port err ' + str(response.get('src_port')) + str(self.port)
 
@@ -278,6 +281,8 @@ class raw_TCP:
             now = time.time()
             while True:
                 self._check_retransmit()
+                if DEBUG:
+                    print 'data_recv_len: ' + str(len(self.data_recved))
                 response = self._recv_packet()
                 if DEBUG:
                     print 'begin processing'
@@ -286,7 +291,9 @@ class raw_TCP:
                     if ack_num in self.sent_packets.keys():
                         del self.sent_packets[ack_num]
                     seq = response.get('seq_num')
-                    if not seq in self.data_recved.keys():
+                    # if not seq in self.data_recved.keys():
+                    #     self.data_recved[response.get('seq_num')] = response.get('data')
+                    if seq >= self.server_seq:
                         self.data_recved[response.get('seq_num')] = response.get('data')
                     else:
                         if DEBUG:
@@ -299,9 +306,11 @@ class raw_TCP:
                     self.client_ack = response.get('ack_num')
                     self._start_tear_down()
                     break
-                if (len(self.result) == self.content_length \
-                        or self.result.endswith('0\r\n\r\n')) \
-                    and self.htmlStared:
+                # if (len(self.result) == self.content_length \
+                if (self.recv_len == self.content_length\
+                        # or self.result.endswith('0\r\n\r\n'))\
+                        or response.get('data').endswith('0\r\n\r\n'))\
+                    and self.htmlStarted:
                         if DEBUG:
                             print self.result.endswith('0\r\n\r\n')
                             print len(self.result)
@@ -349,11 +358,16 @@ class raw_TCP:
         # if DEBUG:
             # print ' '.join(map(str, self.data_recved.keys()))
         while seq in self.data_recved.keys():
-            if seq not in self.pkt_added:
-                self.result += self.data_recved.get(seq)
-                self.pkt_added.append(seq)
-                self.server_seq += len(self.data_recved.get(seq))
-                seq = self.server_seq
+            # if seq not in self.pkt_added:
+            # self.result += self.data_recved.get(seq)
+            self.fileWriter.write(self.data_recved.get(seq))
+            data_len = len(self.data_recved.get(seq))
+            self.recv_len += data_len
+            # self.pkt_added.append(seq)
+            # self.server_seq += len(self.data_recved.get(seq))
+            self.server_seq += data_len
+            del self.data_recved[seq]
+            seq = self.server_seq
             if self.content_length == -1 and not self.chunked:
                 if 'Content-Length: ' in self.result:
                     if DEBUG:
@@ -375,8 +389,8 @@ class raw_TCP:
                     print str(self.chunked)
                     print 'recv_data_len:',
                     print len(self.result)
-            if not self.htmlStared and '<!DOCTYPE' in self.result:
-                self.htmlStared = True
+            if not self.htmlStarted and '<!DOCTYPE' in self.result:
+                self.htmlStarted = True
             self._send_packet('ack')
 
 
