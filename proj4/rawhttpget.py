@@ -11,6 +11,9 @@ import raw_tcp
 import urlparse
 import socket
 
+DEBUG = False
+# DEBUG = True
+
 
 class raw_http:
     """httpget implementation using raw socket"""
@@ -22,7 +25,7 @@ class raw_http:
 
     # since we're requested to ensure the file downloaded exactly the same with the ones on server,
     # so if the file is chunked encoded, we need to decode
-    def decode_chucked_data(self):
+    def _decode_chucked_data(self):
         pos = 0
         chunked = ''
         now = 0
@@ -37,7 +40,7 @@ class raw_http:
 
 
     # get the http request header
-    def get_http_header(self, url):
+    def _get_http_header(self, url):
         path = url.path
         if path == "":
             path = "/"
@@ -58,19 +61,18 @@ class raw_http:
             path = purl.path.split('/')
             if path[-1] != '':
                 self.filename = path[-1]
-        request = self.get_http_header(purl)
+        request = self._get_http_header(purl)
         print purl.hostname
-        self.result = self.tcp.send(purl, request)
-        self.write_file()
+        self.result, isChunked = self.tcp.send(purl, request)
+        if isChunked:
+            self._decode_chucked_data()
+        self._write_file()
 
     # write the data to file
-    def write_file(self):
-        print self.result
+    def _write_file(self):
+        if DEBUG:
+            print self.result
         if '.' in self.filename and self.filename.split('.')[1] in ['html', 'htm']:
-            if self.result.endswith('0\r\n\r\n'):
-                print 'chunked'
-                self.decode_chucked_data()
-            print self.filename
             f = open(self.filename, 'w')
             f.write(self.result)
             f.close()

@@ -25,7 +25,7 @@ class raw_ip:
 
 
     # decode the IP part of the packet
-    def decodeIpHeader(self, packet):
+    def _decodeIpHeader(self, packet):
         mapRet = {}
         mapRet["version"] = (int(ord(packet[0])) & 0xF0)>>4
         mapRet["headerLen"] = (int(ord(packet[0])) & 0x0F)<<2
@@ -42,7 +42,7 @@ class raw_ip:
         return mapRet
 
     # construct the 
-    def construct_header(self, dest_ip, tcp_data):
+    def _construct_header(self, dest_ip, tcp_data):
         if DEBUG:
             print 'ip header building: '
         ip_ihl = 5
@@ -80,7 +80,7 @@ class raw_ip:
 
     def send_packet(self, dest_ip, data):
 
-        packet = self.construct_header(dest_ip, data)
+        packet = self._construct_header(dest_ip, data)
         if DEBUG:
             print 'ip sending: ' + str(len(packet))
         self.ethernet.send(packet)
@@ -103,7 +103,7 @@ class raw_ip:
                 if DEBUG:
                     print checksum(ip_header)
                 continue
-            mapIpTmp = self.decodeIpHeader(ip_header)
+            mapIpTmp = self._decodeIpHeader(ip_header)
             if (mapIpTmp.get('protocol') != socket.IPPROTO_TCP
                 or not mapIpTmp.has_key('srcaddr') or not mapIpTmp.get('srcaddr') == dest_ip
                 or not mapIpTmp.has_key('dstaddr') or not mapIpTmp.get('dstaddr') == self.ethernet.src_ip_addr):

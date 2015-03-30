@@ -14,20 +14,20 @@ DEBUG = False
 class ethernet:
     """Get the local macaddr and dst addr"""
     def __init__(self):
-        self.src_ip_addr = self.get_local_ip_addr()
-        self.src_mac_addr = self.get_local_mac_addr()
-        self.interface = self.get_interface()
-        gateway_ip = self.get_default_gateway_linux()
-        self.gateway_mac_addr = self.get_target_mac_addr(gateway_ip)
-        self.frame_header = self.construct_frame_header()
+        self.src_ip_addr = self._get_local_ip_addr()
+        self.src_mac_addr = self._get_local_mac_addr()
+        self.interface = self._get_interface()
+        gateway_ip = self._get_default_gateway_linux()
+        self.gateway_mac_addr = self._get_gateway_mac_addr(gateway_ip)
+        self.frame_header = self._construct_frame_header()
         self.send_sock = None
         self.recv_sock = None
-        self.create_send_sock()
-        self.create_recv_sock()
+        self._create_send_sock()
+        self._create_recv_sock()
 
 
     # get local MAC address
-    def get_local_mac_addr(self):
+    def _get_local_mac_addr(self):
         ips = commands.getoutput("/sbin/ifconfig | grep -o -E '([[:xdigit:]]{1,2}:){5}[[:xdigit:]]{1,2}'")
         for ip in ips.split():
             if ip[:3] != '127':
@@ -36,7 +36,7 @@ class ethernet:
         self.source_ip = ''
 
     # get gateway ip address, used for ARP msg
-    def get_default_gateway_linux(self):
+    def _get_default_gateway_linux(self):
         """Read the default gateway directly from /proc."""
         with open("/proc/net/route") as fh:
             for line in fh:
@@ -46,7 +46,7 @@ class ethernet:
                 return socket.inet_ntoa(pack("<L", int(fields[2], 16)))
 
     # get the interface name for the socket to bind
-    def get_interface(self):
+    def _get_interface(self):
         # ips = commands.getoutput("/sbin/ifconfig | grep -i \"Link encap\" ")
         ips = commands.getoutput("/sbin/ifconfig")
         ips = ips.split(')\n')
@@ -55,7 +55,7 @@ class ethernet:
                 return s.split()[0]
 
     # get current ip address
-    def get_local_ip_addr(self):
+    def _get_local_ip_addr(self):
         ips = commands.getoutput("/sbin/ifconfig | grep -i \"inet\" | grep -iv \"inet6\" | " +
                              "awk {'print $2'} | sed -ne 's/addr\:/ /p'")
         for ip in ips.split():
@@ -65,9 +65,9 @@ class ethernet:
         self.source_ip = ''
 
     # construct header for every frame, destination MAC address + source MAC address + '0x0800'
-    def construct_frame_header(self):
+    def _construct_frame_header(self):
         if DEBUG: 
-            print 'coconstruct_frame_headerns: '
+            print 'construct frame headers: '
         frame_packet = pack("!6s6s2s", 
             self.gateway_mac_addr.replace(':', '').decode('hex'), 
             self.src_mac_addr.replace(':','').decode('hex'), 
@@ -75,7 +75,7 @@ class ethernet:
         return frame_packet
 
     # create SEND socket for AF_PACKET
-    def create_send_sock(self):
+    def _create_send_sock(self):
         try:
             self.send_sock = socket.socket(socket.AF_PACKET, socket.SOCK_RAW)
             self.send_sock.bind((self.interface, 0))
@@ -85,7 +85,7 @@ class ethernet:
             sys.exit()
 
     # create RECV socket for AF_PACKET
-    def create_recv_sock(self):
+    def _create_recv_sock(self):
         try:
             self.recv_sock = socket.socket(socket.AF_PACKET, socket.SOCK_RAW, socket.htons(0x0003))
             # self.recv_sock.setblocking(0)
@@ -98,7 +98,7 @@ class ethernet:
             sys.exit()
 
     # get gateway's MAC address by ARP
-    def get_target_mac_addr(self, target):
+    def _get_gateway_mac_addr(self, target):
         flag = False
         while not flag:
             #constructing ARP packet

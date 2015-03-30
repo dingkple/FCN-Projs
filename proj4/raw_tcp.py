@@ -19,8 +19,8 @@ MSS = 1450
 
 MAX_WIN_SIZE = 30000
 
-# DEBUG = True
-DEBUG = False
+DEBUG = True
+# DEBUG = False
 
 
 
@@ -130,7 +130,8 @@ class raw_TCP:
         tcp_header += pack('H' , tcp_check) + pack('!H' , tcp_urg_ptr)
         packet = tcp_header + user_data
         self.client_seq += len(user_data)
-        self.sent_packets[self.client_seq] = [time.time(), user_data, self.client_seq]
+        if ftype == 'send':
+            self.sent_packets[self.client_seq] = [time.time(), user_data, self.client_seq]
         return packet
 
 
@@ -221,8 +222,8 @@ class raw_TCP:
                 if response.get('dst_port') == self.port:
                     if DEBUG:
                         print 'got right port'
-                    self.client_ack = response.get('ack_num')
-                    self.server_seq = response.get('seq_num')
+                        self.client_ack = response.get('ack_num')
+                        self.server_seq = response.get('seq_num')
                     return response
                 else:
                     if DEBUG:
@@ -310,8 +311,8 @@ class raw_TCP:
                             print 'Transfer-Encoding',
                             print self.result[-5:]
                         self._init_tear_down()
-                        return self.get_result()
-            return self.get_result()
+                        return self.get_result(), self.chunked
+            return self.get_result(), self.chunked
         else:
             if DEBUG:
                 print 'hand shake failed'
@@ -345,8 +346,8 @@ class raw_TCP:
         seq = response.get('seq_num')
         if DEBUG:
             print seq
-        if DEBUG:
-            print ' '.join(map(str, self.data_recved.keys()))
+        # if DEBUG:
+            # print ' '.join(map(str, self.data_recved.keys()))
         while seq in self.data_recved.keys():
             if seq not in self.pkt_added:
                 self.result += self.data_recved.get(seq)
