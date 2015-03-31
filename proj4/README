@@ -61,7 +61,7 @@ ethernet:
         4. create socket for sending and receiving.
     PS:
         1. Since in python, IPPROTO_IP is a dummy argument, so we use the following way to receive
-        all the packets:
+        all the packets including TCP, UDP, ICMP:
             socket.socket(socket.AF_PACKET, socket.SOCK_RAW, socket.htons(0x0003))
     This layer filters all the packet with right MAC address and the ethertype is '\x08\x00'
 
