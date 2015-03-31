@@ -201,12 +201,13 @@ class raw_TCP:
 
 
     def _recv_packet(self):
-        now = time.time()
+        start = time.time()
         while True:
-            cur = time.time()
-            if cur - now > 180:
+            end = time.time()
+            if end - start > 180:
                 if DEBUG:
                     print 'tcp error'
+                print 'tcp no data recved for 3 min, exiting'
                 sys.exit()
             if cur - now % 10 > 5:
                 if DEBUG:

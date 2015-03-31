@@ -28,6 +28,7 @@ class raw_http:
         self.content_length = -1
         self.recv_len = 0
         self.chunked = False
+        self.fileWriter = None
 
 
     # since we're requested to ensure the file downloaded exactly the same with the ones on server,
@@ -97,7 +98,6 @@ class raw_http:
         while not self.tcp.is_closed():
             recv_len, data = self.tcp.recv()
             self.recv_len = recv_len - len(self.header) - 5 + len(data)
-            self.result.append(data)
             if self.content_length != -1:
                 size_str = '%06.02f KB / %d KB downloaded!' % (self.recv_len*1.0/1024, self.content_length)
             else:
@@ -107,28 +107,33 @@ class raw_http:
             sys.stdout.flush()  
 
             if self.content_length != -1:
+                self._write_to_file(data)
                 if self.content_length == self.recv_len: 
-                    self._write_file()
-                    # print self.tcp.is_closed()
+                    self._close_file()
                     if not self.tcp.is_closed(): 
                         self.tcp.init_tear_down()
                     break
             elif self.chunked:
+                self.result.append(data)
                 if data.endswith('0\r\n\r\n'):
                     self._write_file()
                     if not self.tcp.is_closed():
                         self.tcp.init_tear_down()
                     break
 
+    def _write_to_file(self, data):
+        if self.fileWriter == None:
+            self.fileWriter = open(self.filename, 'w')
+        self.fileWriter.write(data)
+
+    def _close_file(self):
+        self.fileWriter.close()
 
     # write the data to file
     def _write_file(self):
         if DEBUG:
             print self.result
-        if self.chunked:
-            self._decode_chucked_data()
-        else:
-            self.result = ''.join(self.result)
+        self._decode_chucked_data()
         if '.' in self.filename and self.filename.split('.')[1] in ['html', 'htm']:
             f = open(self.filename, 'w')
             f.write(self.result)

@@ -87,14 +87,14 @@ class raw_ip:
 
 
     def receive_packet(self, dest_ip):
-        now = time.time()
+        start = time.time()
         while True:
-            cur = time.time()
-            if cur - now > 2:
-                if DEBUG:
-                    print 'timeout'
-                return -1, -1
             received_packet = self.ethernet.recv()
+            end = time.time()
+            if end - start > 180:
+                if DEBUG:
+                    print 'ip no data recved'
+                    sys.exit()
             if DEBUG:
                 print 'ip decoding'
             ip_header = received_packet[0:20]

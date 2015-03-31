@@ -90,6 +90,7 @@ class ethernet:
             self.recv_sock = socket.socket(socket.AF_PACKET, socket.SOCK_RAW, socket.htons(0x0003))
             # self.recv_sock.setblocking(0)
             # self.recv_sock.bind((INTERFACE, 0))
+            self.recv_sock.settimeout(0.5)
         except socket.error , msg:
             if DEBUG: 
                 print 'recv error'
@@ -149,8 +150,13 @@ class ethernet:
 
     # receive packet and filter out the packet with the right MAC address
     def recv(self):
+        start = time.time()
         while True:
             packet = self.recv_sock.recvfrom(65536)[0]
+            end = time.time()
+            if end - start > 180:
+                print 'ethernet no data recved'
+                sys.exit()
             if len(packet) > 14:
                 if DEBUG: 
                     print len(packet)
@@ -158,7 +164,8 @@ class ethernet:
                 dst_MAC = self.gateway_mac_addr.replace(':','').decode('hex')
                 src_mac = self.src_mac_addr.replace(':','').decode('hex')
                 if (fh[:6] == src_mac
-                    and fh[6:12] == dst_MAC):
+                    and fh[6:12] == dst_MAC
+                    and fh[12:] == '\x08\x00'):
                     if DEBUG: 
                         print 'found'
                     return packet[14:]

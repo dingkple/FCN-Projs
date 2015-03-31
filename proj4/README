@@ -1,0 +1,68 @@
+HTTPGET USING RAW SOCKET()
+
+
+Introduction:
+
+The main goal of this program is to realize HTTPGET, which takes an url on the command line and
+downloads the associated file. The program is written in python and we build the packets using
+AF_PACKET/SOCK_RAW, as requried to get extra credit.
+
+Program description:
+
+The program contains 4 classes:
+
+rawhttpget:
+    raw_http class handles constructing http request, sending it and then fetching data from TCP 
+    layer. Here we use HTTP/1.1, so it's possible that webpade is using Transfer-Encode: chunked.
+    So if we detected this, we will decode it.
+    The main process can be descibe as following:
+    1. construct http request and send it.
+    2. keep receiving data from tcp layer, if HTTP header is detected, find the content-length or
+        Transfer-Encoding in header. 
+        IF Content-Length found:
+            jump to step 3
+        ELSE Transfer-Encoding found:
+            jump to step 4
+    3. keep receiving data from tcp layer, until certain length data is received. Then jump to step
+        5. (Note we write the data to file once received,since we don't need to decode the data)
+    4. keep receiving data from tcp layer, until '0\r\n\r\n' is found at the end of the data, which
+        signals the end of chunked data. Then jump to 5. (Note we store the data at RAM first for 
+        decoding later)
+    5. check if the tcp is still open, if yes, closed tcp actively.
+
+raw_tcp:
+    This layer filter the packet with wrong ports and rearrange the data if it's in wrong order. 
+    Processing part:
+    1. handshake until tcp state is ESTABLISHED
+    2. send request
+    3. keep receiving packets:
+        1. if the packet's seq number is greater than we acked, store it to receiving buffer.
+        2. check if the receiving buffer has packet in right order, 
+            if yes: ack it, add it to current return buffer, and jump to 3 
+            else: ack the last (seq, ack) again, and jump to 1 if buffer is not full.
+        3. if return buffer is not empty, return it http layer.
+        4. if http layer need more data, empty receiving buffer and jump to 1
+    4. if received 'fin' packet or http requests to close, start to tear down the connection.
+
+raw_ip:
+    This class constructs IP packets based on TCP packets, 
+
+ethernet:
+    This class constructs final packets based on IP packets, the main job here is to get gateway's
+    MAC address, following steps are what we've used:
+        1. Analyze "/sbin/ifconfig"'s output to extract local IP address and MAC address.
+        2. Analyze the file "/proc/net/route" to get default gateway's IP address.
+        3. Construct ARP packet and send it to gateway, then analyze the response to get its MAC
+            address.
+        4. create socket for sending and receiving.
+    PS:
+        1. Since in python, IPPROTO_IP is a dummy argument, so we use the following way to receive
+        all the packets:
+            socket.socket(socket.AF_PACKET, socket.SOCK_RAW, socket.htons(0x0003))
+    This layer filters all the packet with right MAC address and the ethertype is '\x08\x00'
+
+
+
+
+
+
