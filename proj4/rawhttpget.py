@@ -63,10 +63,15 @@ class raw_http:
                 self.filename = path[-1]
         request = self._get_http_header(purl)
         print purl.hostname
-        self.result, isChunked = self.tcp.send(purl, request)
+        isChunked = self.tcp.send(purl, request)
+        self._read_temp()
         if isChunked:
             self._decode_chucked_data()
         self._write_file()
+
+    def _read_temp(self):
+        f = open('temp.temp', 'r')
+        self.result = ''.join(f.readlines())
 
     # write the data to file
     def _write_file(self):

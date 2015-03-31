@@ -49,7 +49,7 @@ class raw_ip:
         ip_ver = 4
         ip_tos = 0
         #Id of this packet
-        ip_id = random.randint(0, 65536)
+        ip_id = random.randint(0, 65535)
         ip_frag_off = 0
         ip_ttl = 255
         ip_proto = socket.IPPROTO_TCP
@@ -65,7 +65,7 @@ class raw_ip:
         ip_ihl_ver = (ip_ver << 4) + ip_ihl
         
         ip_header = pack('!BBHHHBBH4s4s' , ip_ihl_ver, ip_tos, ip_tot_len, ip_id, ip_frag_off, 
-        ip_ttl, ip_proto, ip_check, ip_saddr, ip_daddr)
+            ip_ttl, ip_proto, ip_check, ip_saddr, ip_daddr)
         cs = checksum(ip_header)
 
         ip_check = cs & 0xffff
@@ -156,5 +156,5 @@ if __name__ == '__main__':
 
 
 
-
+    
 

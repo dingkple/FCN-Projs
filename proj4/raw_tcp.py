@@ -13,6 +13,7 @@ import urlparse
 import sys
 import time
 import re
+import os 
 
 
 MSS = 1450
@@ -49,6 +50,7 @@ class raw_TCP:
         self.htmlStarted = False
 
         self.fileWriter = open('temp.temp', 'w')
+        self.http_data_start = False
 
 
 
@@ -126,8 +128,6 @@ class raw_TCP:
         tcp_length = len(tcp_header) + len(user_data)
         psh = pack('!4s4sBBH', source_address, dest_address , placeholder , protocol , tcp_length)
         psh = psh + tcp_header + user_data;
-        if DEBUG:
-            print psh
         tcp_check = checksum(psh)
         tcp_header = pack('!HHLLBBH' , self.port, tcp_dest, tcp_seq, tcp_ack_seq, tcp_offset_res, tcp_flags,  tcp_window) 
         tcp_header += pack('H' , tcp_check) + pack('!H' , tcp_urg_ptr)
@@ -310,7 +310,7 @@ class raw_TCP:
                 if (self.recv_len == self.content_length\
                         # or self.result.endswith('0\r\n\r\n'))\
                         or response.get('data').endswith('0\r\n\r\n'))\
-                    and self.htmlStarted:
+                    and self.http_data_start:
                         if DEBUG:
                             print self.result.endswith('0\r\n\r\n')
                             print len(self.result)
@@ -320,8 +320,10 @@ class raw_TCP:
                             print 'Transfer-Encoding',
                             print self.result[-5:]
                         self._init_tear_down()
-                        return self.get_result(), self.chunked
-            return self.get_result(), self.chunked
+                        self.fileWriter.close()
+                        return self.chunked
+            self.fileWriter.close()
+            return self.chunked
         else:
             if DEBUG:
                 print 'hand shake failed'
@@ -358,40 +360,91 @@ class raw_TCP:
         # if DEBUG:
             # print ' '.join(map(str, self.data_recved.keys()))
         while seq in self.data_recved.keys():
-            # if seq not in self.pkt_added:
-            # self.result += self.data_recved.get(seq)
-            self.fileWriter.write(self.data_recved.get(seq))
-            data_len = len(self.data_recved.get(seq))
-            self.recv_len += data_len
-            # self.pkt_added.append(seq)
-            # self.server_seq += len(self.data_recved.get(seq))
+            data = self.data_recved.get(seq)
+            data_len = len(data)
             self.server_seq += data_len
             del self.data_recved[seq]
             seq = self.server_seq
-            if self.content_length == -1 and not self.chunked:
-                if 'Content-Length: ' in self.result:
-                    if DEBUG:
-                        print 'matching length: '
-                        print self.result
-                    cl = re.search(r'[.*?|\s]*Content-Length: ([\d]*)[\s\s].*?', self.result)
-                    if DEBUG:
-                        print cl
-                        print cl.groups(0)
-                    self.content_length = int(cl.groups(1)[0])
-                    if DEBUG:
-                        print self.content_length
-                elif 'Transfer-Encoding' in self.result:
-                    self.chunked = True
+            if self.http_data_start:
+                # __future__.print_function(str(os.path.getsize('temp.temp')/1024)+'KB / '+ str(self.content_length) +' KB downloaded!', end='\r')
+                if self.content_length != -1:
+                    size_str = str(os.path.getsize('temp.temp')/1024)+'KB / '+str(self.content_length)+'KB downloaded!'
+                else:
+                    size_str = str(os.path.getsize('temp.temp')/1024)+'KB / '+'-------'+'KB downloaded!'
+                # print size_str
+                sys.stdout.write('%s\r' % size_str)
+                sys.stdout.flush()  
+
                 if DEBUG:
-                    print 'content_length',
-                    print self.content_length
-                    print 'Transfer-Encoding',
-                    print str(self.chunked)
-                    print 'recv_data_len:',
-                    print len(self.result)
-            if not self.htmlStarted and '<!DOCTYPE' in self.result:
-                self.htmlStarted = True
+                    print 'content_length: ',
+                    print self.content_length,
+                    print 'chunked: ',
+                    print self.chunked
+                self.fileWriter.write(data)
+                self.recv_len += data_len
+            else:
+                self.result += data
+                if self.content_length == -1 and not self.chunked and '\r\n\r\n' in self.result:
+                    if '200' not in self.result:
+                        print 'error http msg, exiting'
+                        sys.exit()
+                    if 'Content-Length: ' in self.result:
+                        if DEBUG:
+                            print 'matching length: '
+                            print self.result
+                        cl = re.search(r'[.*?|\s]*Content-Length: ([\d]*)[\s\s].*?', self.result)
+                        if DEBUG:
+                            print cl
+                            print cl.groups(0)
+                        self.content_length = int(cl.groups(1)[0])
+                        if DEBUG:
+                            print self.content_length
+                        header_pos = self.result.find('\r\n\r\n')
+                        self.fileWriter.write(self.result[header_pos+4:])
+                        self.recv_len = len(self.result) - header_pos - 4
+                        self.http_data_start = True
+                    elif 'Transfer-Encoding' in self.result:
+                        self.chunked = True
+                        header_pos = self.result.find('\r\n\r\n')
+                        self.fileWriter.write(self.result[header_pos+4:])
+                        self.http_data_start = True
             self._send_packet('ack')
+
+
+            # if seq not in self.pkt_added:
+            # self.result += self.data_recved.get(seq)
+            # self.fileWriter.write(self.data_recved.get(seq))
+            # data_len = len(self.data_recved.get(seq))
+            # self.recv_len += data_len
+            # # self.pkt_added.append(seq)
+            # # self.server_seq += len(self.data_recved.get(seq))
+            # self.server_seq += data_len
+            # del self.data_recved[seq]
+            # seq = self.server_seq
+            # if self.content_length == -1 and not self.chunked:
+            #     if 'Content-Length: ' in self.result:
+            #         if DEBUG:
+            #             print 'matching length: '
+            #             print self.result
+            #         cl = re.search(r'[.*?|\s]*Content-Length: ([\d]*)[\s\s].*?', self.result)
+            #         if DEBUG:
+            #             print cl
+            #             print cl.groups(0)
+            #         self.content_length = int(cl.groups(1)[0])
+            #         if DEBUG:
+            #             print self.content_length
+            #     elif 'Transfer-Encoding' in self.result:
+            #         self.chunked = True
+            #     if DEBUG:
+            #         print 'content_length',
+            #         print self.content_length
+            #         print 'Transfer-Encoding',
+            #         print str(self.chunked)
+            #         print 'recv_data_len:',
+            #         print len(self.result)
+            # if not self.htmlStarted and '<!DOCTYPE' in self.result:
+            #     self.htmlStarted = True
+            # self._send_packet('ack')
 
 
     def _init_tear_down(self):
@@ -417,17 +470,18 @@ class raw_TCP:
 
 
     def send(self, url, data):
-        try:
-            self.dest_ip = socket.gethostbyname(url.hostname)
-            self.data_buffer += data
-            if DEBUG:
-                print 'started:',
-                print self.dest_ip
-                print self.data_buffer
-            return self._start_communicating()
-        except:
-            print 'url error'
-            sys.exit(0)
+        # try:
+        self.dest_ip = socket.gethostbyname(url.hostname)
+        self.data_buffer += data
+        if DEBUG:
+            print 'started:',
+            print self.dest_ip
+            print self.data_buffer
+        return self._start_communicating()
+        # except:
+        #     # print e
+        #     print 'url error'
+        #     sys.exit(0)
 
 
 def get_http_header(url):

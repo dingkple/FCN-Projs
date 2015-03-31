@@ -13,6 +13,7 @@ import urlparse
 import sys
 import time
 import re
+import os 
 
 
 MSS = 1450
@@ -37,6 +38,9 @@ TCP_STATE_TIME_WAIT = 10
 
 
 
+
+
+
 class raw_TCP:
     """TCP implementation by raw sockets"""
     def __init__(self):
@@ -55,12 +59,17 @@ class raw_TCP:
         self.last_recv_time = 0
         self.data_recved = {}
         self.result = ''
+        self.recv_len = 0
         self.pkt_added = []
         self.chunked = False
         self.content_length = -1
-        self.htmlStared = False
+        self.htmlStarted = False
 
-        self.tcpState = 
+        self.fileWriter = open('temp.temp', 'w')
+        self.http_data_start = False
+
+
+        self.tcpState = TCP_STATE_CLOSED
 
 
 
@@ -138,14 +147,13 @@ class raw_TCP:
         tcp_length = len(tcp_header) + len(user_data)
         psh = pack('!4s4sBBH', source_address, dest_address , placeholder , protocol , tcp_length)
         psh = psh + tcp_header + user_data;
-        if DEBUG:
-            print psh
         tcp_check = checksum(psh)
         tcp_header = pack('!HHLLBBH' , self.port, tcp_dest, tcp_seq, tcp_ack_seq, tcp_offset_res, tcp_flags,  tcp_window) 
         tcp_header += pack('H' , tcp_check) + pack('!H' , tcp_urg_ptr)
         packet = tcp_header + user_data
         self.client_seq += len(user_data)
-        self.sent_packets[self.client_seq] = [time.time(), user_data, self.client_seq]
+        if ftype == 'send':
+            self.sent_packets[self.client_seq] = [time.time(), user_data, self.client_seq]
         return packet
 
 
@@ -236,10 +244,10 @@ class raw_TCP:
                 if response.get('dst_port') == self.port:
                     if DEBUG:
                         print 'got right port'
-                    self.client_ack = response.get('ack_num')
-                    self.server_seq = response.get('seq_num')
+                    # self.client_ack = resp_packetonse.get('ack_num')
+                    # self.server_seq = response.get('seq_num')
                     return response
-                else:
+                else:   
                     if DEBUG:
                         print 'port err ' + str(response.get('src_port')) + str(self.port)
 
@@ -260,47 +268,77 @@ class raw_TCP:
 
 
     def _hand_shake(self):
-        response = {}
-        self._send_packet('syn')
-        sec = time.time()
-        while True:
-            cur_sec = time.time()
-            if cur_sec - sec > 180:
-                if DEBUG:
-                    print 'timeout'
-                sys.exit()
-            response = self._recv_packet()
-            if DEBUG:
-                print response.get('ack')
-            if DEBUG:
-                print response.get('syn')
-            if response.get('ack') == 1 and response.get('syn') == 1:
-                if DEBUG:
-                    print 'get syn_ack'
-                self.client_seq = response.get('ack_num')
-                self.server_seq = response.get('seq_num')
-                self.server_seq += 1
-                self._send_packet('ack_syn')
-                self.shake_finished = True
-                break
+        if self.tcpState == TCP_STATE_CLOSED:
+            response = {}
+            self._send_packet('syn')
+            self.tcpState = TCP_STATE_SYN_SENT
+            sec = time.time()
+            while self.tcpState != TCP_STATE_ESTABLISHED:
+                response = {}
+                cur_sec = time.time()
+                if cur_sec - time > 180:
+                    if DEBUG:
+                        print 'timeout'
+                    sys.exit()
+                response = self.receive_packet()
+                if response.get('ack') and response.get('sys') == 1:
+                    if DEBUG:
+                        print 'get syn_ack'
+                    self.client_seq = response.get('ack_num')
+                    self.server_seq = response.get('seq_num')
+                    self.server_seq += 1
+                    self._send_packet('ack_syn')
+                    self.tcpState = TCP_STATE_ESTABLISHED
+
+            # response = {}
+            # self._send_packet('syn')
+            # sec = time.time()
+            # while True:
+            #     cur_sec = time.time()
+            #     if cur_sec - sec > 180:
+            #         if DEBUG:
+            #             print 'timeout'
+            #         sys.exit()
+            #     response = self._recv_packet()
+            #     if DEBUG:
+            #         print response.get('ack')
+            #     if DEBUG:
+            #         print response.get('syn')
+            #     if response.get('ack') == 1 and response.get('syn') == 1:
+            #         if DEBUG:
+            #             print 'get syn_ack'
+            #         self.client_seq = response.get('ack_num')
+            #         self.server_seq = response.get('seq_num')
+            #         self.server_seq += 1
+            #         self._send_packet('ack_syn')
+            #         self.shake_finished = True
+            #         break
         
 
     def _start_communicating(self):
-        self._hand_shake()
-        if self.shake_finished:
-            self._send_packet('ack')
-            now = time.time()
+        # self._hand_shake()
+        if self.tcpState == TCP_STATE_ESTABLISHED:
             while True:
                 self._check_retransmit()
-                response = self._recv_packet()
-                if DEBUG:
-                    print 'begin processing'
+        # self._hand_shake()
+        # if self.shake_finished:
+        #     self._send_packet('ack')
+        #     now = time.time()
+        #     while True:
+        #         self._check_retransmit()
+        #         if DEBUG:
+        #             print 'data_recv_len: ' + str(len(self.data_recved))
+        #         response = self._recv_packet()
+        #         if DEBUG:
+        #             print 'begin processing'
                 if response.get('ack') == 1 and response.get('psh') == 1:
                     ack_num = response.get('ack_num')
                     if ack_num in self.sent_packets.keys():
                         del self.sent_packets[ack_num]
                     seq = response.get('seq_num')
-                    if not seq in self.data_recved.keys():
+                    # if not seq in self.data_recved.keys():
+                    #     self.data_recved[response.get('seq_num')] = response.get('data')
+                    if seq >= self.server_seq:
                         self.data_recved[response.get('seq_num')] = response.get('data')
                     else:
                         if DEBUG:
@@ -313,9 +351,11 @@ class raw_TCP:
                     self.client_ack = response.get('ack_num')
                     self._start_tear_down()
                     break
-                if (len(self.result) == self.content_length \
-                        or self.result.endswith('0\r\n\r\n')) \
-                    and self.htmlStared:
+                # if (len(self.result) == self.content_length \
+                if (self.recv_len == self.content_length\
+                        # or self.result.endswith('0\r\n\r\n'))\
+                        or response.get('data').endswith('0\r\n\r\n'))\
+                    and self.http_data_start:
                         if DEBUG:
                             print self.result.endswith('0\r\n\r\n')
                             print len(self.result)
@@ -325,28 +365,13 @@ class raw_TCP:
                             print 'Transfer-Encoding',
                             print self.result[-5:]
                         self._init_tear_down()
-                        return self.get_result()
-            return self.get_result()
+                        self.fileWriter.close()
+                        return self.chunked
+            self.fileWriter.close()
+            return self.chunked
         else:
-            if DEBUG:
-                print 'hand shake failed'
-
-
-    # def _com_fsm(self):
-    #     response = None
-    #     while True:
-    #         if self.tcpState == TCP_STATE_CLOSED:
-    #             self._send_packet('syn')
-    #             self.tcpState = TCP_STATE_SYN_SENT
-    #         elif self.tcpState == TCP_STATE_SYN_SENT:
-    #             self._send_packet('ack_syn')
-    #             self.tcpState = TCP_STATE_ESTABLISHED
-    #         elif self.tcpState == TCP_STATE_ESTABLISHED:
-    #             self._check_retransmit()
-    #             self._ack(response)
-    #             if self._should_fin():
-    #                 self.tcpstate = tcpsta
-
+            print 'wrong tcp state'
+            sys.exit()
 
     def get_result(self):
         # data = ''
@@ -377,38 +402,94 @@ class raw_TCP:
         seq = response.get('seq_num')
         if DEBUG:
             print seq
-        if DEBUG:
-            print ' '.join(map(str, self.data_recved.keys()))
+        # if DEBUG:
+            # print ' '.join(map(str, self.data_recved.keys()))
         while seq in self.data_recved.keys():
-            if seq not in self.pkt_added:
-                self.result += self.data_recved.get(seq)
-                self.pkt_added.append(seq)
-                self.server_seq += len(self.data_recved.get(seq))
-                seq = self.server_seq
-            if self.content_length == -1 and not self.chunked:
-                if 'Content-Length: ' in self.result:
-                    if DEBUG:
-                        print 'matching length: '
-                        print self.result
-                    cl = re.search(r'[.*?|\s]*Content-Length: ([\d]*)[\s\s].*?', self.result)
-                    if DEBUG:
-                        print cl
-                        print cl.groups(0)
-                    self.content_length = int(cl.groups(1)[0])
-                    if DEBUG:
-                        print self.content_length
-                elif 'Transfer-Encoding' in self.result:
-                    self.chunked = True
+            data = self.data_recved.get(seq)
+            data_len = len(data)
+            self.server_seq += data_len
+            del self.data_recved[seq]
+            seq = self.server_seq
+            if self.http_data_start:
+                # __future__.print_function(str(os.path.getsize('temp.temp')/1024)+'KB / '+ str(self.content_length) +' KB downloaded!', end='\r')
+                if self.content_length != -1:
+                    size_str = str(os.path.getsize('temp.temp')/1024)+'KB / '+str(self.content_length)+'KB downloaded!'
+                else:
+                    size_str = str(os.path.getsize('temp.temp')/1024)+'KB / '+'-------'+'KB downloaded!'
+                # print size_str
+                sys.stdout.write('%s\r' % size_str)
+                sys.stdout.flush()  
+
                 if DEBUG:
-                    print 'content_length',
-                    print self.content_length
-                    print 'Transfer-Encoding',
-                    print str(self.chunked)
-                    print 'recv_data_len:',
-                    print len(self.result)
-            if not self.htmlStared and '<!DOCTYPE' in self.result:
-                self.htmlStared = True
+                    print 'content_length: ',
+                    print self.content_length,
+                    print 'chunked: ',
+                    print self.chunked
+                self.fileWriter.write(data)
+                self.recv_len += data_len
+            else:
+                self.result += data
+                if self.content_length == -1 and not self.chunked and '\r\n\r\n' in self.result:
+                    if '200' not in self.result:
+                        print 'error http msg, exiting'
+                        sys.exit()
+                    if 'Content-Length: ' in self.result:
+                        if DEBUG:
+                            print 'matching length: '
+                            print self.result
+                        cl = re.search(r'[.*?|\s]*Content-Length: ([\d]*)[\s\s].*?', self.result)
+                        if DEBUG:
+                            print cl
+                            print cl.groups(0)
+                        self.content_length = int(cl.groups(1)[0])
+                        if DEBUG:
+                            print self.content_length
+                        header_pos = self.result.find('\r\n\r\n')
+                        self.fileWriter.write(self.result[header_pos+4:])
+                        self.recv_len = len(self.result) - header_pos - 4
+                        self.http_data_start = True
+                    elif 'Transfer-Encoding' in self.result:
+                        self.chunked = True
+                        header_pos = self.result.find('\r\n\r\n')
+                        self.fileWriter.write(self.result[header_pos+4:])
+                        self.http_data_start = True
             self._send_packet('ack')
+
+
+            # if seq not in self.pkt_added:
+            # self.result += self.data_recved.get(seq)
+            # self.fileWriter.write(self.data_recved.get(seq))
+            # data_len = len(self.data_recved.get(seq))
+            # self.recv_len += data_len
+            # # self.pkt_added.append(seq)
+            # # self.server_seq += len(self.data_recved.get(seq))
+            # self.server_seq += data_len
+            # del self.data_recved[seq]
+            # seq = self.server_seq
+            # if self.content_length == -1 and not self.chunked:
+            #     if 'Content-Length: ' in self.result:
+            #         if DEBUG:
+            #             print 'matching length: '
+            #             print self.result
+            #         cl = re.search(r'[.*?|\s]*Content-Length: ([\d]*)[\s\s].*?', self.result)
+            #         if DEBUG:
+            #             print cl
+            #             print cl.groups(0)
+            #         self.content_length = int(cl.groups(1)[0])
+            #         if DEBUG:
+            #             print self.content_length
+            #     elif 'Transfer-Encoding' in self.result:
+            #         self.chunked = True
+            #     if DEBUG:
+            #         print 'content_length',
+            #         print self.content_length
+            #         print 'Transfer-Encoding',
+            #         print str(self.chunked)
+            #         print 'recv_data_len:',
+            #         print len(self.result)
+            # if not self.htmlStarted and '<!DOCTYPE' in self.result:
+            #     self.htmlStarted = True
+            # self._send_packet('ack')
 
 
     def _init_tear_down(self):
@@ -434,17 +515,18 @@ class raw_TCP:
 
 
     def send(self, url, data):
-        try:
-            self.dest_ip = socket.gethostbyname(url.hostname)
-            self.data_buffer += data
-            if DEBUG:
-                print 'started:',
-                print self.dest_ip
-                print self.data_buffer
-            return self._start_communicating()
-        except:
-            print 'url error'
-            sys.exit(0)
+        # try:
+        self.dest_ip = socket.gethostbyname(url.hostname)
+        self.data_buffer += data
+        if DEBUG:
+            print 'started:',
+            print self.dest_ip
+            print self.data_buffer
+        return self._start_communicating()
+        # except:
+        #     # print e
+        #     print 'url error'
+        #     sys.exit(0)
 
 
 def get_http_header(url):
