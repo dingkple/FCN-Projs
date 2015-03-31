@@ -1,6 +1,5 @@
 HTTPGET USING RAW SOCKET()
 
-
 Introduction:
 
 The main goal of this program is to realize HTTPGET, which takes an url on the command line and
@@ -33,19 +32,24 @@ rawhttpget:
 raw_tcp:
     This layer filter the packet with wrong ports and rearrange the data if it's in wrong order. 
     Processing part:
-    1. handshake until tcp state is ESTABLISHED
-    2. send request
-    3. keep receiving packets:
-        1. if the packet's seq number is greater than we acked, store it to receiving buffer.
-        2. check if the receiving buffer has packet in right order, 
-            if yes: ack it, add it to current return buffer, and jump to 3 
-            else: ack the last (seq, ack) again, and jump to 1 if buffer is not full.
-        3. if return buffer is not empty, return it http layer.
-        4. if http layer need more data, empty receiving buffer and jump to 1
-    4. if received 'fin' packet or http requests to close, start to tear down the connection.
+        1. handshake until tcp state is ESTABLISHED
+        2. send request
+        3. keep receiving packets:
+            1. check if there's packet need retransmit first.
+            2. receive a packet from IP layer.
+            3. if the packet's seq number is greater than we acked, store it to receiving buffer.
+            4. check if the receiving buffer has packet in right order, 
+                if yes: ack it, add it to current return buffer, and jump to 5 
+                else: ack the last (seq, ack) again, and jump to 2 if buffer is not full.
+            5. if return buffer is not empty, return it http layer.
+            6. if http layer need more data, empty receiving buffer and jump to 1
+        4. if received 'fin' packet or http requests to close, start to tear down the connection.
+    Congestion control is realized by controling the data size for send every round.
 
 raw_ip:
-    This class constructs IP packets based on TCP packets, 
+    This class constructs IP packets based on TCP packets, add ip arguments to TCP packets,
+    including local ip address, destination ip address. window size and etc, then send the packet
+    to ethernet layer. This layer also filter the packet with wrong ip address.
 
 ethernet:
     This class constructs final packets based on IP packets, the main job here is to get gateway's
@@ -60,6 +64,16 @@ ethernet:
         all the packets:
             socket.socket(socket.AF_PACKET, socket.SOCK_RAW, socket.htons(0x0003))
     This layer filters all the packet with right MAC address and the ethertype is '\x08\x00'
+
+The main challenges in this project are:
+    1. How to manage the sequence number and acknowledge number, which need to understand this process
+        very clearly
+    2. How to rearrange tcp packets effectively, the last version we used two buffer, data_recv buf and
+        return_buf to implement it as described before
+    3. the ARP packet constructing, really annoying about the format. But now hard once constructing the
+        right packet.
+
+
 
 
 
