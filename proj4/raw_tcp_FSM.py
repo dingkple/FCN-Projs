@@ -74,7 +74,7 @@ class raw_TCP:
         self.tcpState = TCP_STATE_CLOSED
 
 
-
+    #decode information from tcp headers
     def _decode_tcp_header(self, packet, mapRet):
         # mapRet = {}
         mapRet['src_port'] = (int(ord(packet[0])<<8)) + (int(ord(packet[1])))
@@ -100,7 +100,7 @@ class raw_TCP:
         mapRet['data'] = packet[20:]
         return mapRet
 
-
+    # construct tcp flag for header
     def _construct_flags(self, ftype):
         tcp_rst = 0
         tcp_urg = 0
@@ -124,7 +124,7 @@ class raw_TCP:
         return tcp_flags
 
 
-
+    # construct tcp header
     def _construct_tcp_header(self, user_data, ftype, seq = -1, ack = -1):
         if seq == -1 or ack == -1:
             seq = self.client_seq
@@ -158,7 +158,7 @@ class raw_TCP:
             self.sent_packets[self.client_seq] = [time.time(), user_data, self.client_seq]
         return packet
 
-
+    # get data from buffer to send, controled by congestion window_size adv_win size
     def _get_user_data(self):
         cur_seq = self.client_seq - self.base_seq
         acked = self.client_ack - self.base_seq
@@ -181,6 +181,7 @@ class raw_TCP:
             print 'length: ' + str(len(res))
         return res
 
+    # send packets based on the type of packets
     def _send_packet(self, ftype, retransmit = -1):
         packet = ''
         if retransmit != -1:
@@ -220,7 +221,7 @@ class raw_TCP:
             packet = self._construct_tcp_header('', 'ack_fin')
             self.ip.send_packet(self.dest_ip, packet)
 
-
+    # recv a packet from ip layer, filter out the packets not valid
     def _recv_packet(self):
         now = time.time()
         while True:
@@ -255,6 +256,7 @@ class raw_TCP:
                     if DEBUG:
                         print 'port err ' + str(response.get('src_port')) + str(self.port)
 
+    # check the incoming tcp packets
     def tcp_incoming_checksum(self, packet, response):
         srcaddr = socket.inet_aton(response.get('srcaddr'))
         dstaddr = socket.inet_aton(response.get('dstaddr'))
@@ -264,7 +266,7 @@ class raw_TCP:
         psh = psh + packet
         return incoming_tcp_checksum(psh)
 
-
+    # check if there's packet need retransmission
     def _check_retransmit(self):
         if DEBUG:
             print 'check for retransmit',
@@ -280,7 +282,8 @@ class raw_TCP:
         if DEBUG:
             print 'end retransmit'
 
-
+    # perform a hand shake, when it ends, tcp state should be TCP_STATE_ESTABLISHED or
+    # it times out
     def _hand_shake(self):
         if self.tcpState == TCP_STATE_CLOSED:
             response = {}
@@ -306,7 +309,7 @@ class raw_TCP:
                     self._send_packet('ack_syn')
                     self.tcpState = TCP_STATE_ESTABLISHED
 
-
+    # fetch data from ip layer, only return the http layer right order packets
     def _fetch_data(self):
         while True:
             self._check_retransmit()
@@ -334,7 +337,7 @@ class raw_TCP:
                 return ''.join(self.result)
         return ''.join(self.result)
         
-
+    # return packets in right order to caller
     def recv(self):
         self.result = []
         if self.tcpState != TCP_STATE_ESTABLISHED:
@@ -343,7 +346,7 @@ class raw_TCP:
             sys.exit()
         return self.server_seq - self.base_server_seq, self._fetch_data()
 
-
+    # tear down the tcp connection when fin_ack received
     def _start_tear_down(self):
         if DEBUG:
             print self.client_ack
@@ -354,7 +357,7 @@ class raw_TCP:
             print self.server_seq
         self._send_packet('fin_ack')
 
-
+    # add the data in right order to return buffer and send ack msg
     def _ack(self, response):
         seq = response.get('seq_num')
         if DEBUG:
@@ -371,7 +374,7 @@ class raw_TCP:
             self.cwd_size += 1
             self._send_packet('ack')
 
-
+    # close a tcp actively
     def init_tear_down(self):
         if DEBUG:
             print 'init tear down'
@@ -395,9 +398,7 @@ class raw_TCP:
                     print 'ack_fin sent'
                 break
 
-
-
-
+    # send given requests to given host 
     def send(self, url, data):
         # try:
         self.dest_ip = socket.gethostbyname(url.hostname)
@@ -415,9 +416,11 @@ class raw_TCP:
         #     print 'url error'
         #     sys.exit(0)
 
+    # return true if the tcp state is not TCP_STATE_ESTABLISHED
     def is_closed(self):
         return self.tcpState != TCP_STATE_ESTABLISHED 
 
+# FOR TESTING
 
 def get_http_header(url):
     # global USER_DATA

@@ -77,7 +77,7 @@ class raw_ip:
         return ip_header + tcp_data
 
 
-
+    # construct an IP packet using given tcp packet and send it to ethernet layer
     def send_packet(self, dest_ip, data):
 
         packet = self._construct_header(dest_ip, data)
@@ -85,7 +85,7 @@ class raw_ip:
             print 'ip sending: ' + str(len(packet))
         self.ethernet.send(packet)
 
-
+    # recv packets from ethernet layer and filter out the packets with wrong ip addr
     def receive_packet(self, dest_ip):
         start = time.time()
         while True:

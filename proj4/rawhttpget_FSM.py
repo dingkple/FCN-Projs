@@ -33,7 +33,7 @@ class raw_http:
 
     # since we're requested to ensure the file downloaded exactly the same with the ones on server,
     # so if the file is chunked encoded, we need to decode
-    def _decode_chucked_data(self):
+    def _decode_chunked_data(self):
         pos = 0
         chunked = ''
         now = 0
@@ -63,7 +63,7 @@ class raw_http:
         header += "\r\n"
         return header
 
-
+    # find header and extract information from it
     def check_header(self):
         if '\r\n\r\n' in self.header:
             res = self.header.split('\r\n\r\n')
@@ -81,7 +81,7 @@ class raw_http:
             self.isHeaderFound = True
 
 
-    # find out the filename and send http requests
+    # send request and store the file
     def httpget(self, url):
         purl = urlparse.urlparse(url)
         if '/' in purl.path:
@@ -105,7 +105,6 @@ class raw_http:
             # print size_str
             sys.stdout.write('%s\r' % size_str)
             sys.stdout.flush()  
-
             if self.content_length != -1:
                 self._write_to_file(data)
                 if self.content_length == self.recv_len: 
@@ -121,6 +120,7 @@ class raw_http:
                         self.tcp.init_tear_down()
                     break
 
+    #write the data to file, for unchunked
     def _write_to_file(self, data):
         if self.fileWriter == None:
             self.fileWriter = open(self.filename, 'w')
@@ -129,11 +129,11 @@ class raw_http:
     def _close_file(self):
         self.fileWriter.close()
 
-    # write the data to file
+    # write the decoded chunked data to file
     def _write_file(self):
         if DEBUG:
             print self.result
-        self._decode_chucked_data()
+        self._decode_chunked_data()
         if '.' in self.filename and self.filename.split('.')[1] in ['html', 'htm']:
             f = open(self.filename, 'w')
             f.write(self.result)
