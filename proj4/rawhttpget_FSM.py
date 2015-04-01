@@ -99,9 +99,9 @@ class raw_http:
             recv_len, data = self.tcp.recv()
             self.recv_len = recv_len - len(self.header) - 5 + len(data)
             if self.content_length != -1:
-                size_str = '%06.02f KB / %d KB downloaded!' % (self.recv_len*1.0/1024, self.content_length)
+                size_str = '%.02f KB / %d KB downloaded!' % (self.recv_len*1.0/1024, self.content_length)
             else:
-                size_str = '%02f KB / ---- KB downloaded!' % (self.recv_len*1.0/1024)
+                size_str = '%.02f KB / ---- KB downloaded!' % (self.recv_len*1.0/1024)
             # print size_str
             sys.stdout.write('%s\r' % size_str)
             sys.stdout.flush()  

@@ -239,6 +239,8 @@ class raw_TCP:
             if len(resp_packet) > 0:
                 self.last_recv_time = time.time()
                 response = self._decode_tcp_header(resp_packet, mapRet)
+                if self.tcp_incoming_checksum(resp_packet, response) != 0:
+                    continue
                 if DEBUG:
                     print 'dst_port' + ' ' + str(response.get('dst_port'))
                 if DEBUG:
@@ -253,6 +255,15 @@ class raw_TCP:
                     if DEBUG:
                         print 'port err ' + str(response.get('src_port')) + str(self.port)
 
+    def tcp_incoming_checksum(self, packet, response):
+        srcaddr = socket.inet_aton(response.get('srcaddr'))
+        dstaddr = socket.inet_aton(response.get('dstaddr'))
+        protocol = socket.IPPROTO_TCP
+        tcpLen = len(packet)
+        psh = pack('!4s4sBBH', srcaddr, dstaddr, 0, protocol, tcpLen)
+        psh = psh + packet
+        return incoming_tcp_checksum(psh)
+
 
     def _check_retransmit(self):
         if DEBUG:
@@ -264,6 +275,7 @@ class raw_TCP:
             if now - self.sent_packets.get(pkt)[0] > 60:
                 if DEBUG:
                     print 'preparing retransmit'
+                self.cwd_size = 1
                 self._send_packet('ack', pkt)
         if DEBUG:
             print 'end retransmit'
@@ -313,7 +325,6 @@ class raw_TCP:
             elif response.get('ack') == 1 and response.get('fin') == 1:
                 if DEBUG:
                     print 'tearing down'
-
                 self.tcpState = TCP_STATE_CLOSE_WAIT
                 self.server_seq = response.get('seq_num')
                 self.client_ack = response.get('ack_num')
@@ -348,13 +359,16 @@ class raw_TCP:
         seq = response.get('seq_num')
         if DEBUG:
             print seq
-        while seq in self.data_recved.keys():
+
+        while seq in self.data_recved.keys()\
+            and self.server_seq == seq:
             data = self.data_recved.get(seq)
             data_len = len(data)
             self.result.append(data)
             del self.data_recved[seq]
             self.server_seq += data_len
             seq = self.server_seq
+            self.cwd_size += 1
             self._send_packet('ack')
 
 

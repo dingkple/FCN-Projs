@@ -36,7 +36,8 @@ raw_tcp:
         2. send request
         3. keep receiving packets:
             1. check if there's packet need retransmit first.
-            2. receive a packet from IP layer.
+            2. receive a packet from IP layer, filter out the packet for wrong port or has wrong
+                tcp checksum.
             3. if the packet's seq number is greater than we acked, store it to receiving buffer.
             4. check if the receiving buffer has packet in right order, 
                 if yes: ack it, add it to current return buffer, and jump to 5 
@@ -49,7 +50,8 @@ raw_tcp:
 raw_ip:
     This class constructs IP packets based on TCP packets, add ip arguments to TCP packets,
     including local ip address, destination ip address. window size and etc, then send the packet
-    to ethernet layer. This layer also filter the packet with wrong ip address.
+    to ethernet layer. This layer also filter the packet with wrong ip address or with wrong
+    checksum.
 
 ethernet:
     This class constructs final packets based on IP packets, the main job here is to get gateway's

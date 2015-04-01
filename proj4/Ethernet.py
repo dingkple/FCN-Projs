@@ -152,23 +152,28 @@ class ethernet:
     def recv(self):
         start = time.time()
         while True:
-            packet = self.recv_sock.recvfrom(65536)[0]
-            end = time.time()
-            if end - start > 180:
-                print 'ethernet no data recved'
-                sys.exit()
-            if len(packet) > 14:
-                if DEBUG: 
-                    print len(packet)
-                fh = packet[:14]
-                dst_MAC = self.gateway_mac_addr.replace(':','').decode('hex')
-                src_mac = self.src_mac_addr.replace(':','').decode('hex')
-                if (fh[:6] == src_mac
-                    and fh[6:12] == dst_MAC
-                    and fh[12:] == '\x08\x00'):
+            try:
+                packet = self.recv_sock.recvfrom(65536)[0]
+                end = time.time()
+                if end - start > 180:
+                    print 'ethernet no data recved'
+                    sys.exit()
+                if len(packet) > 14:
                     if DEBUG: 
-                        print 'found'
-                    return packet[14:]
+                        print len(packet)
+                    fh = packet[:14]
+                    dst_MAC = self.gateway_mac_addr.replace(':','').decode('hex')
+                    src_mac = self.src_mac_addr.replace(':','').decode('hex')
+                    if (fh[:6] == src_mac
+                        and fh[6:12] == dst_MAC
+                        and fh[12:] == '\x08\x00'):
+                        if DEBUG: 
+                            print 'found'
+                        return packet[14:]
+            except socket.timeout:
+                print 'ethernet time out'
+                self._create_recv_sock()
+                continue
 
 
 if __name__ == '__main__':
