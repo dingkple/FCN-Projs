@@ -75,6 +75,9 @@ The main challenges in this project are:
     3. the ARP packet constructing, really annoying about the format. But now hard once constructing 
         the right packet.
 
+Team member contribution:
+    Yangyang Huang is responsible for raw_ip part and ethernet part.
+
 
 Team member contribution:
     Yangyang Huang is responsible for raw_ip part and ethernet part.
