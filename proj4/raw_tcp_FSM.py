@@ -155,7 +155,7 @@ class raw_TCP:
         packet = tcp_header + user_data
         self.client_seq += len(user_data)
         if ftype == 'send':
-            self.sent_packets[self.client_seq] = [time.time(), user_data, self.client_seq]
+            self.sent_packets[self.client_seq] = [time.time(), user_data, self.client_seq - len(user_data), self.server_seq]
         return packet
 
     # get data from buffer to send, controled by congestion window_size adv_win size
@@ -188,9 +188,9 @@ class raw_TCP:
             print 'start retransmit: ' + str(retransmit)
             packet = self._construct_tcp_header(
                 self.sent_packets.get(retransmit)[1],
-                'ack',
+                'send',
                 self.sent_packets.get(retransmit)[2],
-                retransmit)
+                self.sent_packets.get(retransmit)[3])
             self.ip.sent_packets(self.dest_ip, packet)
 
         elif ftype == 'syn':

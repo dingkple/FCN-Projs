@@ -76,7 +76,9 @@ The main challenges in this project are:
         the right packet.
 
 
-
+Team member contribution:
+    Yangyang Huang is responsible for raw_ip part and ethernet part.
+    Zhikai Ding is responsible for raw_tcp and rawhttpget part.
 
 
 
