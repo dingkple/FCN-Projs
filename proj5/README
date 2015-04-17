@@ -1,0 +1,14 @@
+HTTPSEVER:
+
+1. Here we use python's BaseHTTPServer and SocketServer to implement our server,
+    for every request, we first get the request's hash, and check if it exists in
+    our cache, if yes, read file and return it, else, download the file from the
+    remote origin server and cache it.
+
+
+DNSSERVER:
+1. For packet class, it's mainly responsible for constructing and unpacking dns
+    packets
+2. For DNS server, we also used SocketServer to implement it, for every request, we
+    now only return the origin IP addr now, the follwing days we will work on 
+    selecting the best server.
