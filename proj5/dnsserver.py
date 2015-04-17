@@ -1,4 +1,6 @@
-import sys, struct, socket
+import sys
+import struct
+import socket
 import SocketServer
 import json
 
@@ -14,8 +16,11 @@ class MyDNSPacket():
         self.ans_num = 0
         self.authRR_num = 0
         self.addiRR_num = 0
-        self.q_type = 1
-        self.q_class = 1
+
+        #these too var's initial value is not important since they r initialized
+        #when unpacking incoming packets
+        self.q_type = 0
+        self.q_class = 0
         self.q_name = ''
 
 
@@ -23,9 +28,14 @@ class MyDNSPacket():
         self.ans_num = 1
         self.flags = 0x8180
 
-        header = struct.pack('>HHHHHH', self.id, self.flags,
-                             self.qst_num, self.ans_num,
-                             self.authRR_num, self.addiRR_num)
+        header = struct.pack(
+            '>HHHHHH', 
+            self.id, 
+            self.flags, 
+            self.qst_num, 
+            self.ans_num, 
+            self.authRR_num, 
+            self.addiRR_num)
 
         query = ''.join(chr(len(k)) + k for k in self.q_name.split('.'))
         query += '\x00'  # add end symbol
@@ -49,24 +59,36 @@ class MyDNSPacket():
         self.qst_num,
         self.ans_num,
         self.authRR_num,
-        self.addiRR_num] = struct.unpack('>HHHHHH', data[ :12 ])
+        self.addiRR_num] = struct.unpack('>HHHHHH', data[:12])
 
-        query_data = data[ 12: ]
+        query_data = data[12:]
         [self.q_type, self.q_class] = struct.unpack('>HH', query_data[-4:])
         s = query_data[:-4]
+        self.q_name = self.__resolve_q_name(s)
+        
+
+    def __resolve_q_name(self, data):
+        res = ''
         ptr = 0
         qst_content = []
+        if DEBUG:
+            print 'before resolved: ',
+            print str(data)
         try :
             while True:
-                part_len = ord( s[ ptr ] )
+                part_len = ord(data[ptr])
                 if part_len == 0:
                     break
                 ptr += 1
-                qst_content.append(s[ ptr:ptr + part_len])
+                qst_content.append(data[ptr:ptr + part_len])
                 ptr += part_len
-            self.q_name = '.'.join(qst_content)
+            res = '.'.join(qst_content)
         except:
-            self.q_name = 'cs5700cdn.example.com'
+            res = 'cs5700cdn.example.com'
+        if DEBUG:
+            print 'q_name_resolved: ',
+            print res
+        return res
 
 
 class MyDNSRequestHandler(SocketServer.BaseRequestHandler):
