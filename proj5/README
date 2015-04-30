@@ -1,10 +1,14 @@
 HTTPSEVER:
 
 1. Here we use python's BaseHTTPServer and SocketServer to implement our server,
-    for every request, we first get the request's hash, and check if it exists in
-    our cache, if yes, read file and return it, else, download the file from the
-    remote origin server and cache it.
-
+for every requests, we follow the steps below:
+    1. get the hash of (hostname, path), then check if it's in the cache, 
+        if yes, read the file form disk
+        else, fetch the file from the original server, then compare the url with 
+        the original url, if they'r the same and status is 200, cache the page, else
+        return the status and page content
+    2. after getting the content of the webpage, we check if the status is 200,
+    if yes, return the client
 
 DNSSERVER:
 1. For packet class, it's mainly responsible for constructing and unpacking dns

@@ -1,10 +1,63 @@
-ec2-52-4-98-110.compute-1.amazonaws.com	Origin server (running Web server on port 8080)
-ec2-52-0-73-113.compute-1.amazonaws.com		N. Virginia
-ec2-52-16-219-28.eu-west-1.compute.amazonaws.com	Ireland
-ec2-52-11-8-29.us-west-2.compute.amazonaws.com	Oregon, USA
-ec2-52-8-12-101.us-west-1.compute.amazonaws.com	N. California, USA
-ec2-52-28-48-84.eu-central-1.compute.amazonaws.com	Frankfurt, Germany
-ec2-52-68-12-77.ap-northeast-1.compute.amazonaws.com	Tokyo, Japan
-ec2-52-74-143-5.ap-southeast-1.compute.amazonaws.com	Singapore
-ec2-52-64-63-125.ap-southeast-2.compute.amazonaws.com	Sydney, Australia
-ec2-54-94-214-108.sa-east-1.compute.amazonaws.com	Sao Paulo, Brazil
+ec2-52-4-98-110.compute-1.amazonaws.com
+ec2-52-0-73-113.compute-1.amazonaws.com
+ec2-52-16-219-28.eu-west-1.compute.amazonaws.com
+ec2-52-11-8-29.us-west-2.compute.amazonaws.com
+ec2-52-8-12-101.us-west-1.compute.amazonaws.com
+ec2-52-28-48-84.eu-central-1.compute.amazonaws.com
+ec2-52-68-12-77.ap-northeast-1.compute.amazonaws.com
+ec2-52-74-143-5.ap-southeast-1.compute.amazonaws.com
+ec2-52-64-63-125.ap-southeast-2.compute.amazonaws.com
+ec2-54-94-214-108.sa-east-1.compute.amazonaws.com
+
+
+
+"ec2-52-4-98-110.compute-1.amazonaws.com",
+"ec2-52-0-73-113.compute-1.amazonaws.com",
+"ec2-52-16-219-28.eu-west-1.compute.amazonaws.com",
+"ec2-52-11-8-29.us-west-2.compute.amazonaws.com",
+"ec2-52-8-12-101.us-west-1.compute.amazonaws.com",
+"ec2-52-28-48-84.eu-central-1.compute.amazonaws.com",
+"ec2-52-68-12-77.ap-northeast-1.compute.amazonaws.com",
+"ec2-52-74-143-5.ap-southeast-1.compute.amazonaws.com",
+"ec2-52-64-63-125.ap-southeast-2.compute.amazonaws.com",
+"ec2-54-94-214-108.sa-east-1.compute.amazonaws.com"
+
+MAP = {'52.74.143.5': (1.293100, 13.855800),
+     '52.16.219.28': (53.333100, -6.248900),
+     '52.4.98.110': (39.043700, -77.487500),
+     '52.0.73.113': (39.043700, -77.487500),
+     '52.68.12.77': (35.685000, 139.751400),
+     '52.64.63.125': (-33.866600, 151.208200),
+     '52.28.48.84': (50.116700, 8.683300),
+     '54.94.214.108': (-23.547500, -46.636100),
+     '52.11.8.29': (45.839900, -119.700600),
+     '52.8.12.101': (37.339400, -121.895000)}
+
+wget http://cs5700cdn.example.com:40019
+
+wget http://52.28.48.84:50011
+
+dig cs5700cdn.example.com @cs5700cdnproject.ccs.neu.edu -p 50012 
+dig cs5700cdn.example.com @login.ccs.neu.edu -p 50011
+
+dig @localhost -p 50011 cs5700cdn.example.com
+
+./dnsserver -p 50011 -n cs5700cdn.example.com
+
+./httpserver -p 50011 -o ec2-52-4-98-110.compute-1.amazonaws.com
+
+nohup ./dnsserver -p 40019 -n cs5700cdn.example.com > /dev/null 2>&1 &
+
+nohup ./httpserver -p 50011 -o ec2-52-4-98-110.compute-1.amazonaws.com > /dev/null 2>&1 &
+
+scamper -c 'ping -c 1' -i 104.128.81.3 |awk 'NR==2 {print $7}'|cut -d '=' -f 2
+scamper -c 'ping -c 1' -i 52.0.73.113
+
+ssh -i ~/.ssh/id_rsa.pub zhikai@cs5700cdnproject.ccs.neu.edu "cd ~/scripts/; chmod 700 dnsserver; nohup ./dnsserver -p 40021 -n cs5700cdn.example.com > /dev/null 2>&1 &"
+
+
+
+
+
+
+

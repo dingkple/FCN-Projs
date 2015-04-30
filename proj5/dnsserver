@@ -1,2 +1,2 @@
 #!/bin/sh
-python httpserver.py $@
+python dnsserver.py $@
