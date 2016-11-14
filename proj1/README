@@ -5,11 +5,11 @@ encountered the BYE message, and then check the new message and output the recie
 64-byte-secret-flag.
 
 
-The biggest chanllenge for me in this project is to find the way to connect using ssl, I tried some
+The biggest challenge for me in this project is to find the way to connect using ssl, I tried several
 ways specifying the certification files, but none of them works, at last I tried setting
 cert_reqs=ssl.CERT_NONE and it worked.
 
-For mainly functions, I used all the possible commands to test my code:
+For main functions, I used all the possible commands to test my code:
 -p port -s hostname nuid
 -p port hostname nuid
 -s hostname nuid
